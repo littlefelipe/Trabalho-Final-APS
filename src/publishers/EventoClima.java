@@ -22,4 +22,24 @@ public class EventoClima {
     public String toString() {
         return String.format("[%s] %s: %.2f %s", timestamp, tipoSensor, valor, unidade);
     }
+
+	public String getIdEvento() {
+		return idEvento;
+	}
+
+	public String getTipoSensor() {
+		return tipoSensor;
+	}
+
+	public double getValor() {
+		return valor;
+	}
+
+	public String getUnidade() {
+		return unidade;
+	}
+
+	public LocalDateTime getTimestamp() {
+		return timestamp;
+	}
 }

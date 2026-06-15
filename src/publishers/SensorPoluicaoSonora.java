@@ -2,9 +2,14 @@ package publishers;
 
 import java.util.Random;
 
-public class SensorPoluicaoSonora implements Sensor{
-	private Random random = new Random();
+import com.rabbitmq.client.Connection;
 
+public class SensorPoluicaoSonora extends Sensor{
+	private Random random = new Random();
+	
+    public SensorPoluicaoSonora(Connection connection, String nomeRoteador) {
+        super("RUIDO", connection, nomeRoteador);
+    }
     @Override
     public EventoClima gerarLeitura() {
         // Decibéis variando entre 40 (tranquilo) e 120 (muito barulhento/risco)
