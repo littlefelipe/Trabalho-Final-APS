@@ -1,8 +1,14 @@
 package publishers;
 import java.util.Random;
 
-public class SensorVelocidadeVento implements Sensor {
+import com.rabbitmq.client.Connection;
+
+public class SensorVelocidadeVento extends Sensor {
 	private Random random = new Random();
+	
+    public SensorVelocidadeVento(Connection connection, String nomeRoteador) {
+        super("VELOCIDADE", connection, nomeRoteador);
+    }
 
 	@Override
 	public EventoClima gerarLeitura() {

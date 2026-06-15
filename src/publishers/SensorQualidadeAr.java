@@ -2,8 +2,14 @@ package publishers;
 
 import java.util.Random;
 
-public class SensorQualidadeAr implements Sensor {
+import com.rabbitmq.client.Connection;
+
+public class SensorQualidadeAr extends Sensor {
 	private Random random = new Random();
+	
+    public SensorQualidadeAr(Connection connection, String nomeRoteador) {
+        super("QUALIDADE", connection, nomeRoteador);
+    }
 	@Override
     public EventoClima gerarLeitura() {
 		// Qualidade do Ar indo de 0 IqAr a 500 IqAr

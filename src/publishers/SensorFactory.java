@@ -1,18 +1,22 @@
 package publishers;
 
+import com.rabbitmq.client.Connection;
+
 public class SensorFactory {
-    public static Sensor criarSensor(String tipo) {
-        if (tipo.equalsIgnoreCase("TEMPERATURA")) {
-            return new SensorTemperatura();
-        } else if (tipo.equalsIgnoreCase("RUIDO")) {
-            return new SensorPoluicaoSonora();
-        } else if (tipo.equalsIgnoreCase("QUALIDADE")) {
-            return new SensorQualidadeAr();
-        } else if (tipo.equalsIgnoreCase("UMIDADE")) {
-            return new SensorUmidade();
-        } else if (tipo.equalsIgnoreCase("VELOCIDADE")) {
-            return new SensorVelocidadeVento();
-        } 
-        throw new IllegalArgumentException("Tipo de sensor desconhecido.");
+    public static Sensor criarSensor(String tipo, Connection connection, String nomeRoteador) {
+        switch (tipo.toUpperCase()) {
+            case "TEMPERATURA":
+                return new SensorTemperatura(connection, nomeRoteador);
+            case "RUIDO":
+                return new SensorPoluicaoSonora(connection, nomeRoteador);
+            case "UMIDADE":
+                return new SensorUmidade(connection, nomeRoteador);
+            case "VELOCIDADE":
+                return new SensorVelocidadeVento(connection, nomeRoteador);
+            case "QUALIDADE":
+                return new SensorQualidadeAr(connection, nomeRoteador);
+            default:
+                throw new IllegalArgumentException("Tipo de sensor desconhecido: " + tipo);
+        }
     }
 }
