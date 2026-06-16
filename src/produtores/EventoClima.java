@@ -1,6 +1,6 @@
-package publishers;
+package produtores;
 
-import java.time.LocalDateTime;
+
 import java.util.UUID;
 
 public class EventoClima {
@@ -8,14 +8,14 @@ public class EventoClima {
     private String tipoSensor;
     private double valor;
     private String unidade;
-    private LocalDateTime timestamp;
+    private String timestamp;
 
     public EventoClima(String tipoSensor, double valor, String unidade) {
         this.idEvento = UUID.randomUUID().toString();
         this.tipoSensor = tipoSensor;
         this.valor = valor;
         this.unidade = unidade;
-        this.timestamp = LocalDateTime.now();
+        
     }
 
     @Override
@@ -39,7 +39,7 @@ public class EventoClima {
 		return unidade;
 	}
 
-	public LocalDateTime getTimestamp() {
+	public String getTimestamp() {
 		return timestamp;
 	}
 }

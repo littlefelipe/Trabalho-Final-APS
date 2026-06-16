@@ -1,4 +1,4 @@
-package publishers;
+package produtores;
 import java.util.Random;
 
 import com.rabbitmq.client.Connection;

@@ -1,4 +1,4 @@
-package publishers;
+package produtores;
 
 import java.util.Random;
 
@@ -14,6 +14,6 @@ public class SensorPoluicaoSonora extends Sensor{
     public EventoClima gerarLeitura() {
         // Decibéis variando entre 40 (tranquilo) e 120 (muito barulhento/risco)
         double valor = 40.0 + (80.0 * random.nextDouble());
-        return new EventoClima("POLUICAO_SONORA", valor, "dB");
+        return new EventoClima("RUIDO", valor, "dB");
     }
 }
