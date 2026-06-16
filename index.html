@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Painel Ambiental em Tempo Real</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; padding: 20px; color: #333; }
+        h1 { text-align: center; }
+        
+        /* Layout Principal */
+        .container { display: flex; gap: 20px; max-width: 1200px; margin: 0 auto; }
+        .col-esq { flex: 2; }
+        .col-dir { flex: 1; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); height: 80vh; overflow-y: auto;}
+        
+        /* Cards */
+        .grid { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; }
+        .card { background: white; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); padding: 15px; width: calc(33% - 15px); text-align: center; transition: box-shadow 0.3s; }
+        .card h3 { margin: 0 0 10px 0; color: #666; font-size: 1.1em; }
+        .card .valor { font-size: 1.8em; font-weight: bold; color: #0078d7; }
+        .card .unidade { font-size: 0.9em; color: #888; }
+        .card .time { font-size: 0.75em; color: #aaa; margin-top: 5px; display: block; }
+        
+        /* Alertas */
+        .alerta-item { padding: 10px; margin-bottom: 10px; border-radius: 5px; font-size: 0.9em; color: white; }
+        .alerta-grave { background-color: #d32f2f; }
+        .alerta-medio { background-color: #f57c00; }
+        .alerta-atencao { background-color: #fbc02d; color: #333; }
+
+        /* Gráfico */
+        .chart-container { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+
+    <h1>Monitoramento Ambiental 🌍</h1>
+
+    <div class="container">
+        <div class="col-esq">
+            <div class="grid">
+                <div class="card" id="card-TEMPERATURA">
+                    <h3>Temperatura</h3>
+                    <span class="valor" id="val-TEMPERATURA">--</span> <span class="unidade">°C</span>
+                    <span class="time" id="time-TEMPERATURA">Aguardando dados...</span>
+                </div>
+                <div class="card" id="card-RUIDO">
+                    <h3>Poluição Sonora</h3>
+                    <span class="valor" id="val-RUIDO">--</span> <span class="unidade">dB</span>
+                    <span class="time" id="time-RUIDO">Aguardando dados...</span>
+                </div>
+                <div class="card" id="card-UMIDADE">
+                    <h3>Umidade</h3>
+                    <span class="valor" id="val-UMIDADE">--</span> <span class="unidade">%</span>
+                    <span class="time" id="time-UMIDADE">Aguardando dados...</span>
+                </div>
+                <div class="card" id="card-VELOCIDADE">
+                    <h3>Vento</h3>
+                    <span class="valor" id="val-VELOCIDADE">--</span> <span class="unidade">km/h</span>
+                    <span class="time" id="time-VELOCIDADE">Aguardando dados...</span>
+                </div>
+                <div class="card" id="card-QUALIDADE">
+                    <h3>Qualidade do Ar</h3>
+                    <span class="valor" id="val-QUALIDADE">--</span> <span class="unidade">AQI</span>
+                    <span class="time" id="time-QUALIDADE">Aguardando dados...</span>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="historicoChart"></canvas>
+            </div>
+        </div>
+
+        <div class="col-dir">
+            <h3 style="margin-top:0; color: #333;">Central de Alertas</h3>
+            <div id="alertas-box">
+                <p style="color: #aaa; font-size: 0.9em; text-align: center;">Nenhuma ameaça detectada.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuração do Gráfico (Chart.js)
+        const ctx = document.getElementById('historicoChart').getContext('2d');
+        const grafico = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [], // Horários
+                datasets: [
+                    { label: 'Temperatura (°C)', borderColor: '#e53935', data: [], hidden: false },
+                    { label: 'Umidade (%)', borderColor: '#1e88e5', data: [], hidden: false },
+                    { label: 'Ruído (dB)', borderColor: '#fb8c00', data: [], hidden: false },
+                    { label: 'Vento (km/h)', borderColor: '#8e24aa', data: [], hidden: false },
+                    { label: 'Qualidade Ar (AQI)', borderColor: '#43a047', data: [], hidden: false }
+                ]
+            },
+            options: {
+                responsive: true,
+                animation: false, // Desliga animação para não bugar com os updates rápidos
+                scales: { x: { display: true } }
+            }
+        });
+
+        // Controle para manter apenas os últimos 20 pontos no gráfico (não travar o navegador)
+        const maxPontosGrafico = 20;
+
+        // Conexão WebSocket
+        const socket = new WebSocket('ws://localhost:8887');
+
+        socket.onopen = function() { console.log("Conectado ao servidor."); };
+
+        socket.onmessage = function(event) {
+            const mensagem = JSON.parse(event.data);
+            // Verifica se a mensagem é um ALERTA (vamos configurar o Java para mandar isso)
+            if (mensagem.tipoMensagem === "ALERTA") {
+                exibirAlerta(mensagem);
+                return;
+            }
+            // Se for um EVENTO DE CLIMA padrão
+            atualizarCard(mensagem);
+            atualizarGrafico(mensagem);
+        };
+
+        function atualizarCard(evento) {
+            const valorEl = document.getElementById('val-' + evento.tipoSensor);
+            const timeEl = document.getElementById('time-' + evento.tipoSensor);
+            
+            if (valorEl) {
+                valorEl.textContent = evento.valor.toFixed(2);
+                
+                let dataFormatada = new Date().toLocaleTimeString();
+                if (typeof evento.timestamp === 'string') {
+                    dataFormatada = new Date(evento.timestamp).toLocaleTimeString();
+                } else if (evento.timestamp && evento.timestamp.time) {
+                    dataFormatada = String(evento.timestamp.time.hour).padStart(2, '0') + ":" + String(evento.timestamp.time.minute).padStart(2, '0') + ":" + String(evento.timestamp.time.second).padStart(2, '0');
+                }
+                timeEl.textContent = "Atualizado às: " + dataFormatada;
+
+                const cardEl = document.getElementById('card-' + evento.tipoSensor);
+                cardEl.style.boxShadow = "0 4px 15px rgba(0, 120, 215, 0.4)";
+                setTimeout(() => cardEl.style.boxShadow = "0 4px 8px rgba(0,0,0,0.1)", 300);
+            }
+
+        }
+
+        function carregarHistoricoDoBanco() {
+            fetch('http://localhost:8080/api/historico')
+                .then(response => response.json())
+                .then(dados => {
+                    dados.forEach(evento => {
+                        // Formata a hora para o eixo X
+                        let dataHora = new Date(evento.timestamp).toLocaleTimeString();
+                        
+                        if (!grafico.data.labels.includes(dataHora)) {
+                            grafico.data.labels.push(dataHora);
+                        }
+
+                        // Mapeia os dados para as linhas corretas do gráfico
+                        let datasetIndex = -1;
+                        if (evento.tipoSensor === "TEMPERATURA") datasetIndex = 0;
+                        if (evento.tipoSensor === "UMIDADE") datasetIndex = 1;
+                        if (evento.tipoSensor === "RUIDO") datasetIndex = 2;
+                        if (evento.tipoSensor === "VELOCIDADE") datasetIndex = 3;
+                        if (evento.tipoSensor === "QUALIDADE") datasetIndex = 4;
+
+                        if (datasetIndex !== -1) {
+                            grafico.data.datasets[datasetIndex].data.push(evento.valor);
+                        }
+                    });
+                    grafico.update();
+                    console.log("Histórico carregado com sucesso da nuvem.");
+                })
+                .catch(erro => console.error("Erro ao buscar histórico:", erro));
+        }
+
+        // Chama a função imediatamente ao abrir a tela
+        carregarHistoricoDoBanco();
+
+        function atualizarGrafico(evento) {
+            let dataHora = new Date().toLocaleTimeString();
+            
+            // Adiciona o horário no eixo X se não existir
+            if (!grafico.data.labels.includes(dataHora)) {
+                grafico.data.labels.push(dataHora);
+                if (grafico.data.labels.length > maxPontosGrafico) {
+                    grafico.data.labels.shift(); // Remove o horário mais antigo
+                }
+            }
+
+            // Mapeia o sensor para o dataset correto
+            let datasetIndex = -1;
+            if (evento.tipoSensor === "TEMPERATURA") datasetIndex = 0;
+            if (evento.tipoSensor === "UMIDADE") datasetIndex = 1;
+            if (evento.tipoSensor === "RUIDO") datasetIndex = 2;
+            if (evento.tipoSensor === "VELOCIDADE") datasetIndex = 3;
+            if (evento.tipoSensor === "QUALIDADE") datasetIndex = 4;
+
+            if (datasetIndex !== -1) {
+                grafico.data.datasets[datasetIndex].data.push(evento.valor);
+                
+                // Mantém o tamanho do array alinhado
+                if (grafico.data.datasets[datasetIndex].data.length > maxPontosGrafico) {
+                    grafico.data.datasets[datasetIndex].data.shift();
+                }
+                grafico.update();
+            }
+        }
+
+        function exibirAlerta(alerta) {
+            const box = document.getElementById('alertas-box');
+            
+            // Remove a mensagem de "Nenhuma ameaça" se for o primeiro alerta
+            if (box.innerHTML.includes("Nenhuma ameaça")) { box.innerHTML = ""; }
+
+            const div = document.createElement('div');
+            div.className = "alerta-item alerta-" + alerta.nivel.toLowerCase();
+            
+            const hora = new Date().toLocaleTimeString();
+            div.innerHTML = `<strong>[${hora}]</strong> ${alerta.mensagem}`;
+            
+            // Adiciona no topo da lista
+            box.insertBefore(div, box.firstChild);
+        }
+    </script>
+</body>
+</html>

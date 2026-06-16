@@ -1,4 +1,4 @@
-package publishers;
+package produtores;
 
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;

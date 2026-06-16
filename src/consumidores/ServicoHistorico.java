@@ -1,4 +1,4 @@
-package subscribers;
+package consumidores;
 
 import com.google.gson.Gson;
 import com.rabbitmq.client.Channel;
@@ -6,12 +6,10 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.DeliverCallback;
 
-import publishers.EventoClima;
+import produtores.EventoClima;
 
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
-import java.sql.Timestamp;
-import java.time.format.DateTimeFormatter;
 
 
 
@@ -19,9 +17,9 @@ public class ServicoHistorico {
     private final static String NOME_ROTEADOR = "eventos_ambientais";
     
     // Credenciais do Banco de Dados
-    private final static String DB_URL = "jdbc:postgresql://localhost:5432/postgres";
+    private final static String DB_URL = "jdbc:postgresql://ep-aged-poetry-acxch3o5-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
     private final static String DB_USER = "postgres";
-    private final static String DB_PASSWORD = "12345";
+    private final static String DB_PASSWORD = "npg_DnRLdvP3Hfc1";
 
     public static void main(String[] args) throws Exception {
         // 1. Conexão com o Banco de Dados
@@ -54,20 +52,36 @@ public class ServicoHistorico {
                 // Converte de JSON para o Objeto Java
                 EventoClima evento = gson.fromJson(mensagemJson, EventoClima.class);
                 
+                // Mecanismo de segurança para a data (Timestamp)
+                java.sql.Timestamp carimboTempo;
+                if (evento.getTimestamp() == null) {
+                    // Se o Gson não conseguiu ler a data do JSON, usamos a hora atual
+                    carimboTempo = new java.sql.Timestamp(System.currentTimeMillis());
+                } else {
+                    // Limpa o formato para o padrão estrito do PostgreSQL (YYYY-MM-DD HH:MM:SS)
+                    String dataLimpa = evento.getTimestamp().replace("T", " ");
+                    if (dataLimpa.contains(".")) {
+                        dataLimpa = dataLimpa.substring(0, dataLimpa.indexOf("."));
+                    }
+                    carimboTempo = java.sql.Timestamp.valueOf(dataLimpa);
+                }
+                
                 // Preenche os parâmetros do SQL
                 pstmt.setString(1, evento.getIdEvento());
                 pstmt.setString(2, evento.getTipoSensor());
                 pstmt.setDouble(3, evento.getValor());
                 pstmt.setString(4, evento.getUnidade());
-                pstmt.setTimestamp(5, Timestamp.valueOf(evento.getTimestamp()));
+                pstmt.setTimestamp(5, carimboTempo);
                 
-                // Executa a gravação no banco [cite: 23]
+                // Executa a gravação na base de dados
                 pstmt.executeUpdate();
                 
-                System.out.println("[Histórico] Evento " + evento.getIdEvento() + " gravado com sucesso.");
+                System.out.println("[Histórico] Evento " + evento.getTipoSensor() + " gravado localmente com sucesso.");
                 
             } catch (Exception e) {
-                System.err.println("Falha ao gravar evento no banco: " + e.getMessage());
+                // Imprime o erro exato e o JSON problemático para análise
+                System.err.println("Falha ao gravar. Erro: " + e.getMessage());
+                System.err.println("JSON recebido do RabbitMQ: " + mensagemJson);
             }
         };
 

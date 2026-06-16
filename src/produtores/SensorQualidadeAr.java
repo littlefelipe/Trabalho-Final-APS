@@ -1,4 +1,4 @@
-package publishers;
+package produtores;
 
 import java.util.Random;
 
@@ -14,7 +14,7 @@ public class SensorQualidadeAr extends Sensor {
     public EventoClima gerarLeitura() {
 		// Qualidade do Ar indo de 0 IqAr a 500 IqAr
         double valor = 500 * random.nextDouble();
-        return new EventoClima("QUALIDADE_AR", valor, "IqAr");
+        return new EventoClima("QUALIDADE", valor, "IqAr");
     }
 
 }
